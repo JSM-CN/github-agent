@@ -338,10 +338,6 @@ def init(
     console.print("[dim]Add .env to your .gitignore to keep your keys secure[/dim]")
 
 
-if __name__ == "__main__":
-    app()
-
-
 # ============== Local Project Commands ==============
 
 
@@ -555,7 +551,17 @@ def create_repo(
 
     structure = project_client.get_project_structure()
     repo_name = repo_name or structure["name"]
-    description = description or structure.get("description", "")
+
+    # 处理 description：清理控制字符并限制长度
+    raw_description = description or structure.get("description", "")
+    if raw_description:
+        # 移除控制字符（保留基本空白）
+        import re
+        raw_description = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', raw_description)
+        # 替换多个空白为单个空格
+        raw_description = re.sub(r'\s+', ' ', raw_description).strip()
+        # 限制长度为 350 字符
+        description = raw_description[:350]
 
     console.print(Panel(
         f"[bold]Creating GitHub Repository[/bold]\n\n"
@@ -601,12 +607,21 @@ def create_repo(
             # Add remote
             import subprocess
             try:
-                subprocess.run(
-                    ["git", "remote", "add", "origin", clone_url],
-                    cwd=project_path,
-                    check=True,
-                )
-                console.print("  Added remote: origin")
+                # 检查是否已有 origin，如果有则更新
+                if git_client.has_remote("origin"):
+                    subprocess.run(
+                        ["git", "remote", "set-url", "origin", clone_url],
+                        cwd=project_path,
+                        check=True,
+                    )
+                    console.print("  Updated remote: origin")
+                else:
+                    subprocess.run(
+                        ["git", "remote", "add", "origin", clone_url],
+                        cwd=project_path,
+                        check=True,
+                    )
+                    console.print("  Added remote: origin")
 
                 # Push
                 branch = git_client.get_current_branch() or "main"
@@ -623,10 +638,12 @@ def create_repo(
         console.print(f"\n[green]✓ Done! Your repository is ready at: {repo_url}[/green]")
 
     except Exception as e:
+        import traceback
         if "already exists" in str(e).lower():
             console.print(f"[yellow]Repository '{repo_name}' already exists[/yellow]")
         else:
             console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
             raise typer.Exit(1)
 
 
@@ -678,3 +695,7 @@ def push(
     else:
         console.print("[red]✗ Push failed[/red]")
         raise typer.Exit(1)
+
+
+if __name__ == "__main__":
+    app()

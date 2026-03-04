@@ -1,6 +1,7 @@
 """GitHub API tools for repository operations."""
 
 import json
+import os
 from typing import Any
 
 import httpx
@@ -27,6 +28,14 @@ class GitHubClient:
             "Accept": "application/vnd.github.v3+json",
             "X-GitHub-Api-Version": "2022-11-28",
         }
+        # Support proxy from environment variables
+        self.proxy = None
+        http_proxy = os.environ.get("https_proxy") or os.environ.get("http_proxy") or os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        if http_proxy:
+            # 确保代理地址有协议前缀
+            if not http_proxy.startswith("http://") and not http_proxy.startswith("https://"):
+                http_proxy = f"http://{http_proxy}"
+            self.proxy = http_proxy
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def _request(
@@ -46,10 +55,17 @@ class GitHubClient:
             httpx.HTTPError: If request fails
         """
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=self.proxy) as client:
             response = await client.request(
                 method, url, headers=self.headers, timeout=30.0, **kwargs
             )
+            if response.status_code >= 400:
+                # 打印错误详情以便调试
+                try:
+                    error_detail = response.json()
+                    print(f"GitHub API Error ({response.status_code}): {error_detail}")
+                except:
+                    print(f"GitHub API Error ({response.status_code}): {response.text}")
             response.raise_for_status()
             return response.json()  # type: ignore
 

@@ -96,6 +96,19 @@ export DEFAULT_MODEL="your-model-name"
 
 ## 🚀 Usage
 
+### 代理设置（可选）
+
+如果你需要使用代理访问 GitHub：
+
+```bash
+# 设置代理
+export http_proxy=proxy.example.com:8080
+export https_proxy=$http_proxy
+
+# 然后正常运行命令
+github-agent create-repo -P . --push
+```
+
 ### GitHub 仓库工作流
 
 ```bash
@@ -131,13 +144,22 @@ github-agent local -p requirements.md -P ./my-project --no-commit
 ### GitHub 仓库管理
 
 ```bash
-# 从本地项目创建 GitHub 仓库
+# 从本地项目创建 GitHub 仓库（公开）
 github-agent create-repo -P ./my-project --name my-awesome-project
+
+# 创建私有仓库
+github-agent create-repo -P ./my-project --name my-project --private
+
+# 创建仓库并自动推送本地代码
+github-agent create-repo -P ./my-project --name my-project --push
 
 # 创建私有仓库并推送
 github-agent create-repo -P ./my-project --name my-project --private --push
 
-# 推送本地项目到 GitHub
+# 在当前目录创建仓库并推送（仓库名默认为目录名）
+github-agent create-repo --push
+
+# 推送本地项目到已存在的 GitHub 仓库
 github-agent push -P ./my-project
 ```
 
